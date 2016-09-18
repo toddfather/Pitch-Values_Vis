@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>D3 Page Template</title>
+        <script type="text/javascript" src="d3/d3.v3.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"> </script>
+        <link href="https://fonts.googleapis.com/css?family=Francois+One|Varela+Round|Gloria+Hallelujah|Kaushan+Script|Lakki+Reddy|Mogra|Shadows+Into+Light|Lobste|Maiden+Orange" rel='stylesheet'>
+        <style>
+        	h2 {
+        		text-align: center;
+        		font-family: Maiden Orange;
+        	}
+        	svg {
+				position: fixed;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+
+			}
+			
+			svg text {
+				pointer-events: none;
+			}
+			
+        	.axis path,
+			.axis line {
+				fill: none;
+				stroke: black;
+				shape-rendering: crispEdges;
+			}
+			
+			.axis text {
+				font-family: sans-serif;
+				font-size: 11px;
+			}
+			
+			rect{
+				-moz-transition: all 0.3s;
+				-o-transition: all 0.3s;
+				-webkit-transition: all 0.3s;
+				transition: all 0.3s;
+			}
+			
+			rect:hover {
+				fill: orange;
+			}
+			
+			#scatter {
+				position: fixed;
+				top: 90%;
+				left: 30%;
+				transform: translate(-50%, -50%);		
+			}
+			#bars {
+				position: fixed;
+				top: 90%;
+				left: 35%;
+				transform: translate(-50%, -50%);
+			}
+
+			#options {
+				position: fixed;
+				top: 90%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+			}
+			
+			#sort {
+				position: fixed;
+				top: 90%;
+				left: 65%;
+				transform: translate(-50%, -50%);	
+				
+			}
+			
+
+
+			
+			#tooltip {
+				position: absolute;
+				width: 100px;
+				height: auto;
+				padding: 10px;
+				background-color: white;
+				-webkit-border-radius: 10px;
+				-moz-border-radius: 10px;
+				border-radius: 10px;
+				-webkit-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+				box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+				pointer-events: none;
+				z-index: 1000;
+			}
+			
+			#tooltip.hidden {
+				display: none;
+			}
+			
+			#tooltip p {
+				margin: 0;
+				font-family: Maiden Orange;
+				font-size: 16px;
+				line-height: 20px; 
+				text-anchor: middle;
+			}
+			
+        </style>
+    </head>
+    	<body>
+    		<h2 id='heading'> 2016 Pitch Values </h2>
+    		<button id="bars"> bar chart</button>
+    		<button id='sort'> sort </button>
+    		<form id="options">
+    		<select id='selection'> 
+    			<option> wCH </option>
+    			<option> wFB </option>
+    			<option> wSL </option>
+    			<option> wCB </option>	
+    			<option> wCT </option>
+    		</select>	
+    		</form>
+    		
+    		<div id='tooltip' class='hidden'>
+    			<p><strong> </strong></p>
+    			<p><span id='value'>Player</span></p>	
+    		</div>
+    
+    	<script> 
+   		
+   		d3.json("TopPitchValues.json", function(data) {
+  	
+   		
+   		var h = 300;
+   		var w = 1200;
+   		
+   		var svg = d3.select('body').append('svg')
+   					.attr('id', 'my_svg')
+   					.attr('height', h)
+					.attr('width', w);
+					   
+		var getPitch = function() {
+			var obj = document.getElementById('selection');
+   			return obj.options[obj.selectedIndex].text;
+		};
+		
+		var p_Scale;
+		var my_data;
+		
+		$('#bars').click(function() {
+			$('#my_svg').empty();
+			
+		var pitch = getPitch();
+		my_data = data.sort(function(a, b) { return a[pitch] < b[pitch] ? 1 : -1; }).slice(0,40);
+   		console.log(my_data);
+   		
+   		$('#heading').html("<strong>2016 " + pitch + " Pitch Values</strong>");
+   		
+   		var xScale   = d3.scale.ordinal()
+					   .domain(d3.range(my_data.length))
+					   .rangeRoundBands([0, w], 0.05);	
+	
+		var p_Scale   = d3.scale.linear()
+					   .domain(d3.extent(my_data, function(d) { return (d[pitch]); }))
+					   .range([h, 0]); 	 
+					   
+		var rgbScale = d3.scale.linear()
+					   .domain([d3.min(my_data, function(d) { return d[pitch];}), d3.max(my_data, function(d) { return d[pitch];})])
+					   .range([0,255]); 
+
+
+   		svg.selectAll('rect')
+   		   .data(my_data)
+   		   .enter()
+   		   .append('rect')   		 
+   		   .attr({   		   		
+   		   		width: xScale.rangeBand(),
+   		   		fill: function(d) { return 'rgb(0, 0,' + Math.floor(rgbScale(d[pitch])) + ')'},	
+   		   		x:    function(d, i) { return xScale(i); } 		 
+   		   })
+   		   .transition()
+   		   .delay(function(d,i) { return i*50;})
+   		   .duration(1000)   		   
+   		   .attr('height', function(d) { return Math.abs( -p_Scale(0) + p_Scale(d[pitch]));})
+   		   .attr('y',function(d) { return p_Scale(Math.max(0, d[pitch]));});
+   		
+   		svg.selectAll('rect').data(my_data)
+   		   .on('mouseover', function(d) {
+   		   		d3.select(this).attr('fill', 'orange');
+   		   		
+   		   		var xPos = parseFloat(d3.select(this).attr('x')) + 3*xScale.rangeBand();
+   		   		var yPos = parseFloat(d3.select(this).attr('y'))/2 + h/2 +15;
+   		   		
+   		   		d3.select('#tooltip')
+   		   		  .style('left', xPos +'px')
+   		   		  .style('top', yPos +'px')
+   		   		  .select('#value')
+   		   		  .html(d.Name + '<br/>' + d.Team)
+   		   		  .attr('text-anchor', 'middle');
+   		   		  
+   		   		d3.select('#tooltip').classed('hidden', false);
+   		   })
+   		   .on('mouseout', function(d) {
+   		   		d3.select(this)
+   		   		  .transition()
+   		   		  .duration(300)
+   		   		  .attr('fill', function(d) { return 'rgb(0, 0,' + Math.floor(rgbScale(d[pitch])) + ')';});
+   		   
+   		   		d3.select('#tooltip').classed('hidden', true);
+   		   });
+   		
+   		svg.selectAll('text')
+   		   .data(my_data)
+   		   .enter()
+   		   .append('text')
+   		   .attr('x',function(d, i) { return xScale(i) + xScale.rangeBand()/2; })
+   		   .text(function(d) { return d[pitch]; })
+   		   .transition()
+   		   .delay(function(d,i) { return i*50; })
+   		   .duration(1400)
+   		   .attr({ 
+   		   		y: function(d) { return p_Scale(Math.max(0, d[pitch])) + 14;},
+   		   		'font-family': 'sans-serif',
+   		   		'font-size': '11px',
+   		   		'fill': 'white',
+   		   		'text-anchor': 'middle'
+   		   	})	
+		});
+			
+	   $('#scatter').click(function() {	
+	   		console.log(my_data)
+   			if(bars) {
+   				d3.selectAll('rect').remove();
+   				d3.selectAll('text').remove()  
+   				  
+   				bars    = false;
+   				scatter = true;  
+   			}
+   			
+   			var padding = 30;
+   			
+   			var xScale = d3.scale.linear()
+   						   .domain([0, d3.max(my_data, function(d) { return d[pitch];})])
+   						   .range([padding, w-2*padding]);
+   						      			
+   			var yScale = d3.scale.linear()
+					   		.domain([d3.min(my_data, function(d) { return d.wFB;}), d3.max(my_data, function(d) { return d.wFB;})])
+					   		.range([h-padding, padding]);
+			
+   			var rScale = d3.scale.linear()
+   						   .domain([d3.min(my_data, function(d) { return d.wFB;}), d3.max(my_data, function(d) { return d.wFB;})])
+   						   .range([2,5]);
+   			
+   			var xAxis  = d3.svg.axis()
+   						   .scale(xScale)
+   						   .orient('bottom');
+   						   
+   			var yAxis  = d3.svg.axis()
+   						   .scale(yScale)
+   						   .orient('left');
+   			
+   			svg.append('g').attr('id', 'circles')
+   			   .attr('transform', 'translate(' + padding + ', 0)')
+   			   .selectAll('circle')
+   			   .data(my_data)
+   			   .enter()
+   			   .append('circle')
+			   .transition()
+			   .duration(500)   			   
+   			   .each('start', function() {
+   			   		d3.select(this).attr({
+   			   			fill: 'blue',
+   			   			cx: function(d) { return xScale(d[pitch]);},
+   			   			r: 7
+   			   		})
+   			   })
+   			   .transition()
+   			   .delay(function(d,i) {return i * 50;})
+   			   .duration(500)
+   			   .attr('cy', function(d) { return yScale(d.wFB);})
+   			   .attr('r', function(d)  { return rScale(d.wFB);})
+   			
+   			svg.selectAll('circle').data(my_data)
+   			   .append('title')
+   			   .text(function(d) { return d[pitch]; });
+   			   
+   			svg.append('g')
+   			   .attr('class', 'x axis')
+   			   .attr('transform', 'translate(0,' + (h - padding) + ')')
+   			   .call(xAxis);
+   			
+   			svg.append('g')
+   			   .attr('class', 'y axis')
+   			   .attr('transform', 'translate(' + padding + ', 0)')
+   			   .call(yAxis);	   
+ 			
+ 	 	});
+		
+		
+ 	 	var sortOrder = false;
+ 	 	
+ 	 	var sortBars = function() {
+ 	 		sortOrder  = !sortOrder;
+ 	 		var pitch  = getPitch();
+ 	 		var xScale = d3.scale.ordinal()
+					   .domain(d3.range(my_data.length))
+					   .rangeRoundBands([0, w], 0.05);
+					   
+ 	 		svg.selectAll('rect')
+ 	 		   .sort(function(a,b) {
+ 	 		   		if(sortOrder) {
+ 	 		   			return d3.ascending(a[pitch], b[pitch]);
+ 	 		   		}   else {
+ 	 		   			return d3.descending(a[pitch], b[pitch]);
+ 	 		   		}
+ 	 		   })
+ 	 		   .transition()
+ 	 		   .duration(1000)
+ 	 		   .attr('x', function(d, i) {
+ 	 		   		return xScale(i);
+ 	 		   })
+ 	 		   
+ 	 		svg.selectAll('text').remove();
+ 	 	};
+ 	 	
+ 	 	var updateLabels = function() {
+ 	 		var pitch  = getPitch();
+ 	 		var xScale = d3.scale.ordinal()
+					   .domain(d3.range(my_data.length))
+					   .rangeRoundBands([0, w], 0.05);
+			var p_Scale = d3.scale.linear()
+					   .domain(d3.extent(my_data, function(d) { return (d[pitch]); }))
+					   .range([h, 0]);		   
+ 	 		sorted_data = my_data.sort(function(a,b) {
+	 		   	if(sortOrder) {   			
+ 	 		   		return d3.ascending(a[pitch], b[pitch]);
+ 	 		   	}   else {
+ 	 		   		return d3.descending(a[pitch], b[pitch]);
+ 	 		   	}
+ 	 		});
+ 	 		
+ 	 		svg.selectAll('text')	
+ 	 			.data(sorted_data)
+ 	 			.enter()
+ 	 			.append('text')
+ 	 			.text(function(d) {return d[pitch];})
+ 	 			.attr('x', function(d,i) { return xScale(i) + xScale.rangeBand()/2;})
+ 	 			.transition()
+ 	 			.duration(1000)
+ 	 			.each('start', function() {
+ 	 				d3.select(this).attr('y', 0);
+ 	 			})
+   		   		.attr({ 
+   		   			y: function(d) { return p_Scale(Math.max(0, d[pitch])) + 14;},
+   		   			'font-family': 'sans-serif',
+   		   			'font-size': '11px',
+   		   			'fill': 'white',
+   		   			'text-anchor': 'middle'
+   		   		});	
+   		   	}	 			
+ 	  	 	 	
+ 	 	$('#sort').click(function(){
+ 	 		sortBars();
+ 	 		updateLabels();
+ 	 		
+ 	 	});
+ 	 
+
+   		
+   	})
+   		</script>
+
+
+	</body>    
+
+</html>
